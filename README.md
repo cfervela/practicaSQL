@@ -7,7 +7,7 @@ macOS y web con una sola base de código.
 ## Estado del proyecto
 
 - [x] Etapa 1: preparación y diseño 
-- [ ] Etapa 2: persistencia real (crear y consultar)
+- [x] Etapa 2: persistencia real (crear y consultar)
 - [ ] Etapa 3: editar, completar, eliminar y validar
 - [ ] Etapa 4: web, pruebas y documentación de plataformas
 
@@ -54,16 +54,40 @@ recorta con `trim()` antes de guardar].
 
 ## Estructura prevista
 
-- `lib/models/`: modelo de tarea.
-- `lib/data/`: base de datos y acceso a datos.
-- `lib/screens/`: interfaz.
+- `lib/main.dart`: arranque; crea la base una sola vez y la pasa a la pantalla.
+- `lib/data/database.dart`: tabla, apertura de la base y operaciones.
+- `lib/models/tarea.dart`: modelo de tarea.
+- `lib/screens/tareas_page.dart`: interfaz; se suscribe al stream de tareas
+  en `initState` y cancela la suscripción en `dispose` (sin consultas dentro
+  de `build()`).
+- `web/sqlite3.wasm` y `web/drift_worker.js`: recursos de Drift para web.
 
 ## Cómo ejecutar
 
     flutter pub get
+    dart run build_runner build --delete-conflicting-outputs
     flutter analyze
     flutter test
-    flutter run -d chrome
+    flutter run -d web-server --web-port=8080
+
+   Abrir http://localhost:8080 en el navegador. Se usa un puerto fijo porque en la web los datos están ligados al origen (dominio y puerto); con otro puerto se vería una base distinta y vacía.
+
+### Recursos de la web
+
+`sqlite3.wasm` y el worker de Drift se descargaron de los releases de Drift (versión [2.35.4], la misma que aparece en `pubspec.lock`) y se colocaron en `web/`. El nombre del worker en `web/` debe coincidir con el usado en `DriftWebOptions` en `lib/data/database.dart`.
+
+## Limitaciones conocidas
+
+- En la web la base pertenece al origen y al perfil del navegador: otro puerto, otro navegador o borrar los datos del sitio implican una base distinta o vacía.
+- En ventanas privadas el navegador puede usar almacenamiento temporal.
+- Aún no se pueden editar, completar ni eliminar tareas (etapa 3).
+
+## Dificultad técnica: temporizador pendiente en la prueba de widget
+
+Al agregar Drift, la prueba básica de inicio falló con el error `A Timer is still pending even after the widget tree was disposed`. La traza señalaba `StreamQueryStore.markAsClosed` de Drift, llamado desde el `dispose()` de `TareasPage`, donde cancelo la suscripción al stream de tareas. Entendí que al cancelarse el último oyente de un stream, Drift programa un temporizador de limpieza, y que en la prueba la pantalla se desmontaba hasta el final, cuando ya no había oportunidad de ejecutarlo. El código de la aplicación era correcto: cancelar la suscripción es lo que pide el requisito de liberar recursos.
+
+Lo resolví desmontando la pantalla dentro de la propia prueba (`pumpWidget(const SizedBox.shrink())`) y avanzando el reloj simulado (`pump(Duration.zero)`), y cerrando la base en `addTearDown`. Lo verifiqué ejecutando de nuevo `flutter test` [: la prueba pasó / resultado observado]. Además agregué una prueba de almacenamiento sin widgets (`test/database_test.dart`) con una base en memoria, que no depende del reloj simulado de las pruebas de widget.
+
 
 ## Referencias consultadas
 - **Drift, documentación general** (https://drift.simonbinder.eu/):

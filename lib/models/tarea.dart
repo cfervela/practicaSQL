@@ -1,5 +1,3 @@
-/// Modelo inicial de tarea. No contiene código de SQLite.
-/// Investiga cómo representar estos campos en una tabla persistente.
 class Tarea {
   final int id;
   final String titulo;
@@ -11,3 +9,5 @@ class Tarea {
     required this.completada,
   });
 }
+
+
