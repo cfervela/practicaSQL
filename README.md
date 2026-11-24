@@ -13,7 +13,7 @@ macOS y web con una sola base de código.
 
 ## Entorno
 
-- Flutter [versión] / Dart [versión]
+- Flutter 3.47.0 / Dart 3.13.0
 - Proyecto base ejecutado con `flutter analyze`, `flutter test` y
   `flutter run -d [dispositivo]`: [resultado, ej. "sin errores"].
 
@@ -22,7 +22,7 @@ macOS y web con una sola base de código.
 **Drift + drift_flutter** (sobre SQLite).
 
 Motivos:
-- [Un mismo código para las seis plataformas mediante `driftDatabase`.]
+- [Un mismo código para las tres plataformas mediante `driftDatabase`.]
 - [Tablas definidas en Dart y consultas tipadas, en vez de SQL en cadenas.]
 - [Consultas reactivas con `Stream` (`watch()`), que evitan consultar a
   mano después de cada escritura.]
