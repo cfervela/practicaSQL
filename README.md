@@ -9,7 +9,7 @@ macOS y web con una sola base de código.
 - [x] Etapa 1: preparación y diseño 
 - [x] Etapa 2: persistencia real (crear y consultar)
 - [x] Etapa 3: editar, completar, eliminar y validar
-- [ ] Etapa 4: web, pruebas y documentación de plataformas
+- [x] Etapa 4: diseño de interfaz (cuaderno) y documentación
 
 ## Funcionalidades
 
@@ -23,8 +23,10 @@ macOS y web con una sola base de código.
 ## Entorno
 
 - Flutter 3.47.0 / Dart 3.13.0
+- drift 2.35.4, drift_flutter 0.3.1, sqlite3 3.9.2
 - Proyecto base ejecutado con `flutter analyze`, `flutter test` y
-  `flutter run -d [dispositivo]`: [resultado, ej. "sin errores"].
+  `flutter run -d [dispositivo]`.
+- Plataforma de desarrollo principal: web (Chrome)
 
 ## Tecnología de persistencia elegida
 
@@ -86,16 +88,32 @@ no se pueda guardar un título inválido aunque se llame a la base directamente)
 - Si una tarea ya no existe (por ejemplo, se borró desde otra pestaña), se
   informa "La tarea ya no existe.".
 
+## Diseño de la interfaz
+
+La pantalla imita un cuaderno de notas con renglones, usando la paleta rosa definida en el tema de la aplicación.
+
+- **Encabezado:** barra de color con el título "To-Do" en una fuente decorativa de tipo manuscrito, y una franja más clara debajo.
+- **Papel rayado:** cada renglón (`FilaRayada`) tiene altura fija y una línea inferior; la lista se completa con renglones vacíos hasta el final de la
+  pantalla para que siempre parezca papel, incluso sin tareas.
+- **Margen doble:** dos líneas verticales (`MargenDoble`) dibujadas encima de la lista, que no se desplazan con ella.
+- **Tareas:** casilla, título (tachado y atenuado si está completada) e íconos de editar y eliminar, todos en la paleta del cuaderno.
+- **Paleta y medidas centralizadas** en `lib/widgets/cuaderno.dart` (`ColoresCuaderno`, `altoLinea`, `xMargen`, `sangria`), de modo que el
+  aspecto se ajusta cambiando constantes en un solo lugar.
+- **Tema global** en `lib/main.dart` (`ColorScheme.fromSeed` con colores propios).
+- **Fuente:** Butterfly Kids, incluida en `assets/fonts/` y declarada en `pubspec.yaml`. Licencia: Copyright (c) 2012, Font Diner. Se incluye como archivo del proyecto (no se descarga en tiempo de ejecución) para que la aplicación funcione sin conexión.
+
 ## Estructura
 
-- `lib/main.dart`: arranque; crea la base una sola vez y la pasa a la pantalla.
+- `lib/main.dart`: arranque, tema y creación única de la base.
 - `lib/data/database.dart`: tabla, apertura de la base y operaciones.
 - `lib/models/tarea.dart`: modelo de tarea.
 - `lib/utils/validacion.dart`: reglas de validación del título.
-- `lib/screens/tareas_page.dart`: interfaz; se suscribe al stream en
-  `initState` y cancela la suscripción en `dispose`, sin consultas dentro de
-  `build()`.
-- `web/sqlite3.wasm` y `web/[nombre del worker]`: recursos de Drift para web.
+- `lib/widgets/cuaderno.dart`: paleta y piezas visuales del cuaderno.
+- `lib/screens/tareas_page.dart`: pantalla principal; se suscribe al stream
+  en `initState` y cancela la suscripción en `dispose`, sin consultas dentro
+  de `build()`.
+- `assets/fonts/`: fuente del título.
+- `web/sqlite3.wasm` y `web/drift_worker.js`: recursos de Drift para web.
 
 ## Cómo ejecutar
 
@@ -136,6 +154,8 @@ Almacenamiento elegido por Drift en el navegador: [mensaje de `onResult` o
   espacios, rechazo de títulos vacíos, edición de título conservando el
   estado, cambio de estado, eliminación solo de la tarea indicada y
   operaciones sobre un id inexistente.
+
+Resultado de la última ejecución: 13
 
 ## Limitaciones conocidas
 

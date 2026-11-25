@@ -10,7 +10,7 @@ void main() {
     addTearDown(db.close);
 
     await tester.pumpWidget(GestorTareasApp(db: db));
-    expect(find.text('Gestor de tareas'), findsOneWidget);
+    expect(find.text('To-Do'), findsOneWidget);
     expect(find.text('Agregar tarea'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
 

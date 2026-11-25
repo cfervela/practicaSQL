@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../widgets/cuaderno.dart';
 
 import '../data/database.dart';
 import '../models/tarea.dart';
@@ -124,77 +125,153 @@ class _TareasPageState extends State<TareasPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestor de tareas')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _tituloController,
-              onSubmitted: (_) => _agregarTarea(),
-              decoration: const InputDecoration(
-                labelText: 'Nueva tarea',
-                border: OutlineInputBorder(),
+      backgroundColor: ColoresCuaderno.papel,
+      appBar: AppBar(
+        backgroundColor: ColoresCuaderno.encabezado,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        toolbarHeight: 72,
+        title: const Text(
+          'To-Do',
+          style: TextStyle(
+            fontFamily: 'Script',
+            fontSize: 50,
+            color: ColoresCuaderno.papel,
+          ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(8),
+          child: ColoredBox(
+            color: ColoresCuaderno.franja,
+            child: SizedBox(height: 8, width: double.infinity),
+          ),
+        ),
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              FilaRayada(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _tituloController,
+                        onSubmitted: (_) => _agregarTarea(),
+                        cursorColor: ColoresCuaderno.margen,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: ColoresCuaderno.tinta,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Nueva tarea…',
+                          hintStyle: TextStyle(color: ColoresCuaderno.tintaSuave),
+                          border: InputBorder.none,
+                          filled: false,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _agregarTarea,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Agregar tarea'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: ColoresCuaderno.margen,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _agregarTarea,
-              icon: const Icon(Icons.add),
-              label: const Text('Agregar tarea'),
-            ),
-            const SizedBox(height: 12),
-            const Text('Mis tareas', style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _tareas.isEmpty
-                  ? const Center(child: Text('Todavía no hay tareas guardadas'))
-                  : ListView.builder(
-                      itemCount: _tareas.length,
+           
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final filasVisibles =
+                        (constraints.maxHeight / altoLinea).ceil();
+                    final total = _tareas.length > filasVisibles
+                        ? _tareas.length
+                        : filasVisibles;
+                    return ListView.builder(
+                      itemCount: total,
+                      itemExtent: altoLinea,
                       itemBuilder: (context, index) {
-                        final tarea = _tareas[index];
-                        return Card(
-                          child: ListTile(
-                            leading: Checkbox(
-                              value: tarea.completada,
-                              onChanged: (valor) {
-                                if (valor != null) {
-                                  _alternarCompletada(tarea, valor);
-                                }
-                              },
-                            ),
-                            title: Text(
-                              tarea.titulo,
+                        if (index < _tareas.length) {
+                          return _filaTarea(_tareas[index]);
+                        }
+                        if (index == 0 && _tareas.isEmpty) {
+                          return const FilaRayada(
+                            child: Text(
+                              'Todavía no hay tareas guardadas',
                               style: TextStyle(
-                                decoration: tarea.completada
-                                    ? TextDecoration.lineThrough
-                                    : null,
+                                fontStyle: FontStyle.italic,
+                                color: ColoresCuaderno.tintaSuave,
                               ),
                             ),
-                            subtitle: Text('ID: ${tarea.id}'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Editar',
-                                  icon: const Icon(Icons.edit),
-                                  onPressed: () => _editarTarea(tarea),
-                                ),
-                                IconButton(
-                                  tooltip: 'Eliminar',
-                                  icon: const Icon(Icons.delete_outline),
-                                  onPressed: () => _eliminarTarea(tarea),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
+                          );
+                        }
+                        return const FilaRayada();
                       },
-                    ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const Positioned.fill(child: MargenDoble()),
+        ],
+      ),
+    );
+  }
+
+  Widget _filaTarea(Tarea tarea) {
+    return FilaRayada(
+      child: Row(
+        children: [
+          Checkbox(
+            value: tarea.completada,
+            activeColor: ColoresCuaderno.margen,
+            checkColor: ColoresCuaderno.papel,
+            side: const BorderSide(color: ColoresCuaderno.margen, width: 1.5),
+            visualDensity: VisualDensity.compact,
+            onChanged: (valor) {
+              if (valor != null) _alternarCompletada(tarea, valor);
+            },
+          ),
+          Expanded(
+            child: Text(
+              tarea.titulo,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 17,
+                color: tarea.completada
+                    ? ColoresCuaderno.tintaSuave
+                    : ColoresCuaderno.tinta,
+                decoration:
+                    tarea.completada ? TextDecoration.lineThrough : null,
+                decorationColor: ColoresCuaderno.margen,
+              ),
             ),
-          ],
-        ),
+          ),
+          IconButton(
+            tooltip: 'Editar',
+            icon: const Icon(Icons.edit_outlined),
+            iconSize: 20,
+            color: ColoresCuaderno.margen,
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _editarTarea(tarea),
+          ),
+          IconButton(
+            tooltip: 'Eliminar',
+            icon: const Icon(Icons.delete_outline),
+            iconSize: 20,
+            color: ColoresCuaderno.margen,
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _eliminarTarea(tarea),
+          ),
+        ],
       ),
     );
   }
