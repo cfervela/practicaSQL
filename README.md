@@ -8,8 +8,17 @@ macOS y web con una sola base de código.
 
 - [x] Etapa 1: preparación y diseño 
 - [x] Etapa 2: persistencia real (crear y consultar)
-- [ ] Etapa 3: editar, completar, eliminar y validar
+- [x] Etapa 3: editar, completar, eliminar y validar
 - [ ] Etapa 4: web, pruebas y documentación de plataformas
+
+## Funcionalidades
+
+- Alta de tareas (F1), con validación del título.
+- Consulta reactiva de las tareas guardadas (F2).
+- Edición del título desde un diálogo (F3).
+- Cambio de estado completada/pendiente con la casilla (F4).
+- Eliminación por identificador, con confirmación (F5).
+- Funciona sin conexión; no hay solicitudes HTTP (F6).
 
 ## Entorno
 
@@ -52,20 +61,46 @@ generado por la base de datos. Editar, cambiar estado y eliminar usan
 **Validación:** [no se acepta un título vacío o de solo espacios; se
 recorta con `trim()` antes de guardar].
 
-## Estructura prevista
+## Operaciones (`lib/data/database.dart`)
+
+| Operación        | SQL    | Método                            | Resultado |
+|------------------|--------|-----------------------------------|-----------|
+| Consultar        | SELECT | `observarTareas()` (Stream)       | Lista, se re-emite al cambiar la tabla |
+| Agregar          | INSERT | `agregarTarea(titulo)`            | id nuevo |
+| Editar título    | UPDATE | `actualizarTitulo(id, titulo)`    | `false` si la tarea ya no existe |
+| Cambiar estado   | UPDATE | `cambiarEstado(id, completada)`   | `false` si la tarea ya no existe |
+| Eliminar         | DELETE | `eliminarTarea(id)`               | `false` si la tarea ya no existe |
+
+
+## Validación y mensajes de error
+
+La validación está en `lib/utils/validacion.dart` y se aplica en dos capas:
+la pantalla (para dar el mensaje de inmediato) y la capa de datos (para que
+no se pueda guardar un título inválido aunque se llame a la base directamente).
+
+- El título se recorta con `trim()`; vacío o solo espacios se rechaza.
+- Longitud máxima de 100 caracteres, igual que la restricción de la tabla.
+- Los errores de validación muestran su mensaje; cualquier otro error de
+  almacenamiento se convierte en un mensaje comprensible, por ejemplo
+  "No se pudo guardar la tarea. Inténtalo de nuevo.".
+- Si una tarea ya no existe (por ejemplo, se borró desde otra pestaña), se
+  informa "La tarea ya no existe.".
+
+## Estructura
 
 - `lib/main.dart`: arranque; crea la base una sola vez y la pasa a la pantalla.
 - `lib/data/database.dart`: tabla, apertura de la base y operaciones.
 - `lib/models/tarea.dart`: modelo de tarea.
-- `lib/screens/tareas_page.dart`: interfaz; se suscribe al stream de tareas
-  en `initState` y cancela la suscripción en `dispose` (sin consultas dentro
-  de `build()`).
-- `web/sqlite3.wasm` y `web/drift_worker.js`: recursos de Drift para web.
+- `lib/utils/validacion.dart`: reglas de validación del título.
+- `lib/screens/tareas_page.dart`: interfaz; se suscribe al stream en
+  `initState` y cancela la suscripción en `dispose`, sin consultas dentro de
+  `build()`.
+- `web/sqlite3.wasm` y `web/[nombre del worker]`: recursos de Drift para web.
 
 ## Cómo ejecutar
 
     flutter pub get
-    dart run build_runner build --delete-conflicting-outputs
+    dart run build_runner build
     flutter analyze
     flutter test
     flutter run -d web-server --web-port=8080
@@ -75,6 +110,32 @@ recorta con `trim()` antes de guardar].
 ### Recursos de la web
 
 `sqlite3.wasm` y el worker de Drift se descargaron de los releases de Drift (versión [2.35.4], la misma que aparece en `pubspec.lock`) y se colocaron en `web/`. El nombre del worker en `web/` debe coincidir con el usado en `DriftWebOptions` en `lib/data/database.dart`.
+
+## Pruebas manuales
+
+| ID | Prueba | Plataforma | Resultado |
+|----|--------|------------|-----------|
+| P1 | Agregar tres tareas, cerrar la pestaña y volver a abrir la misma URL | Chrome, localhost:8080 | [Resultado observado] |
+| P2 | Marcar una como completada y reiniciar | Chrome | [Resultado observado] |
+| P3 | Cambiar el título de una tarea y reiniciar | Chrome | [Resultado observado] |
+| P4 | Eliminar una tarea y reiniciar | Chrome | [Resultado observado] |
+| P5 | Intentar agregar un título vacío (y uno de solo espacios) | Chrome | [Resultado observado] |
+| P6 | Recargar y cerrar/abrir la pestaña en el mismo origen y perfil | Chrome | [Resultado observado] |
+
+Almacenamiento elegido por Drift en el navegador: [mensaje de `onResult` o
+"sin mensaje"].
+
+## Pruebas automatizadas (`flutter test`)
+
+- `test/widget_test.dart`: la pantalla inicial se muestra sin errores. Usa una
+  base en memoria y desmonta la pantalla al final para que Drift cierre sus
+  streams.
+- `test/validacion_test.dart`: `validarTitulo` rechaza nulo, vacío y solo
+  espacios; acepta el máximo de longitud y rechaza uno más.
+- `test/database_test.dart` (base en memoria): alta y consulta, recorte de
+  espacios, rechazo de títulos vacíos, edición de título conservando el
+  estado, cambio de estado, eliminación solo de la tarea indicada y
+  operaciones sobre un id inexistente.
 
 ## Limitaciones conocidas
 
@@ -87,6 +148,10 @@ recorta con `trim()` antes de guardar].
 Al agregar Drift, la prueba básica de inicio falló con el error `A Timer is still pending even after the widget tree was disposed`. La traza señalaba `StreamQueryStore.markAsClosed` de Drift, llamado desde el `dispose()` de `TareasPage`, donde cancelo la suscripción al stream de tareas. Entendí que al cancelarse el último oyente de un stream, Drift programa un temporizador de limpieza, y que en la prueba la pantalla se desmontaba hasta el final, cuando ya no había oportunidad de ejecutarlo. El código de la aplicación era correcto: cancelar la suscripción es lo que pide el requisito de liberar recursos.
 
 Lo resolví desmontando la pantalla dentro de la propia prueba (`pumpWidget(const SizedBox.shrink())`) y avanzando el reloj simulado (`pump(Duration.zero)`), y cerrando la base en `addTearDown`. Lo verifiqué ejecutando de nuevo `flutter test` [: la prueba pasó / resultado observado]. Además agregué una prueba de almacenamiento sin widgets (`test/database_test.dart`) con una base en memoria, que no depende del reloj simulado de las pruebas de widget.
+
+## Plataformas
+- Probadas: [web (Chrome)]
+- Previstas, aún no probadas: [macOS, iOS]
 
 
 ## Referencias consultadas

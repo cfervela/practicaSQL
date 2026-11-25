@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/database.dart';
 import '../models/tarea.dart';
+import '../utils/validacion.dart';
 
 class TareasPage extends StatefulWidget {
   const TareasPage({super.key, required this.db});
@@ -28,34 +29,82 @@ class _TareasPageState extends State<TareasPage> {
         if (!mounted) return;
         setState(() => _tareas = tareas);
       },
-      onError: (_) => _mostrarMensaje('No se pudieron leer las tareas'),
+      onError: (_) => _mostrarMensaje(
+        'No se pudieron leer las tareas. Intenta cerrar y abrir la aplicación.',
+      ),
     );
   }
 
+  Future<void> _ejecutar(
+    String accion,
+    Future<void> Function() operacion,
+  ) async {
+    try {
+      await operacion();
+    } on TituloInvalidoException catch (e) {
+      _mostrarMensaje(e.mensaje);
+    } catch (_) {
+      _mostrarMensaje('No se pudo $accion. Inténtalo de nuevo.');
+    }
+  }
+
   Future<void> _agregarTarea() async {
-    final titulo = _tituloController.text.trim();
-    if (titulo.isEmpty) {
-      _mostrarMensaje('Escribe un título para la tarea');
+    final texto = _tituloController.text;
+    final error = validarTitulo(texto);
+    if (error != null) {
+      _mostrarMensaje(error);
       return;
     }
-    try {
-      await widget.db.agregarTarea(titulo);
+    await _ejecutar('guardar la tarea', () async {
+      await widget.db.agregarTarea(texto);
       _tituloController.clear();
-    } catch (_) {
-      _mostrarMensaje('No se pudo guardar la tarea');
-    }
+    });
   }
 
-  void _alternarCompletada(Tarea tarea, bool completada) {
-    _mostrarMensaje('Implementar actualización de tarea');
+  Future<void> _alternarCompletada(Tarea tarea, bool completada) {
+    return _ejecutar('actualizar el estado de la tarea', () async {
+      final existe = await widget.db.cambiarEstado(tarea.id, completada);
+      if (!existe) _mostrarMensaje('La tarea ya no existe.');
+    });
   }
 
-  void _editarTarea(Tarea tarea) {
-    _mostrarMensaje('Implementar edición de título');
+  Future<void> _editarTarea(Tarea tarea) async {
+    final nuevoTitulo = await showDialog<String>(
+      context: context,
+      builder: (_) => _DialogoEditarTarea(tituloActual: tarea.titulo),
+    );
+    if (nuevoTitulo == null || nuevoTitulo == tarea.titulo) return;
+
+    await _ejecutar('guardar el nuevo título', () async {
+      final existe = await widget.db.actualizarTitulo(tarea.id, nuevoTitulo);
+      if (!existe) _mostrarMensaje('La tarea ya no existe.');
+    });
   }
 
-  void _eliminarTarea(Tarea tarea) {
-    _mostrarMensaje('Implementar eliminación de tarea');
+  Future<void> _eliminarTarea(Tarea tarea) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar tarea'),
+        content: Text('¿Eliminar "${tarea.titulo}"? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true) return;
+
+    await _ejecutar('eliminar la tarea', () async {
+      final existia = await widget.db.eliminarTarea(tarea.id);
+      if (!existia) _mostrarMensaje('La tarea ya no existe.');
+    });
   }
 
   void _mostrarMensaje(String mensaje) {
@@ -83,6 +132,7 @@ class _TareasPageState extends State<TareasPage> {
           children: [
             TextField(
               controller: _tituloController,
+              onSubmitted: (_) => _agregarTarea(),
               decoration: const InputDecoration(
                 labelText: 'Nueva tarea',
                 border: OutlineInputBorder(),
@@ -114,7 +164,14 @@ class _TareasPageState extends State<TareasPage> {
                                 }
                               },
                             ),
-                            title: Text(tarea.titulo),
+                            title: Text(
+                              tarea.titulo,
+                              style: TextStyle(
+                                decoration: tarea.completada
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
                             subtitle: Text('ID: ${tarea.id}'),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -139,6 +196,63 @@ class _TareasPageState extends State<TareasPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DialogoEditarTarea extends StatefulWidget {
+  const _DialogoEditarTarea({required this.tituloActual});
+
+  final String tituloActual;
+
+  @override
+  State<_DialogoEditarTarea> createState() => _DialogoEditarTareaState();
+}
+
+class _DialogoEditarTareaState extends State<_DialogoEditarTarea> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.tituloActual);
+  String? _error;
+
+  void _guardar() {
+    final error = validarTitulo(_controller.text);
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
+    Navigator.of(context).pop(_controller.text.trim());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Editar tarea'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        onSubmitted: (_) => _guardar(),
+        decoration: InputDecoration(
+          labelText: 'Título',
+          errorText: _error,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _guardar,
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

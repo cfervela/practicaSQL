@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/tarea.dart';
+import '../utils/validacion.dart';
 
 part 'database.g.dart';
 
@@ -25,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
       name: 'gestor_tareas',
       web: DriftWebOptions(
         sqlite3Wasm: Uri.parse('sqlite3.wasm'),
-        driftWorker: Uri.parse('drift_worker.js'), // same name as the file in web/
+        driftWorker: Uri.parse('drift_worker.js'), 
         onResult: (result) {
           if (result.missingFeatures.isNotEmpty) {
             debugPrint(
@@ -38,9 +39,35 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  String _tituloValido(String texto) {
+    final error = validarTitulo(texto);
+    if (error != null) throw TituloInvalidoException(error);
+    return texto.trim();
+  }
+
   Stream<List<Tarea>> observarTareas() =>
       (select(tareas)..orderBy([(t) => OrderingTerm.asc(t.id)])).watch();
 
-  Future<int> agregarTarea(String titulo) =>
-      into(tareas).insert(TareasCompanion.insert(titulo: titulo));
+  Future<int> agregarTarea(String titulo) async {
+    final limpio = _tituloValido(titulo);
+    return into(tareas).insert(TareasCompanion.insert(titulo: limpio));
+  }
+
+  Future<bool> actualizarTitulo(int id, String titulo) async {
+    final limpio = _tituloValido(titulo);
+    final filas = await (update(tareas)..where((t) => t.id.equals(id)))
+        .write(TareasCompanion(titulo: Value(limpio)));
+    return filas > 0;
+  }
+
+  Future<bool> cambiarEstado(int id, bool completada) async {
+    final filas = await (update(tareas)..where((t) => t.id.equals(id)))
+        .write(TareasCompanion(completada: Value(completada)));
+    return filas > 0;
+  }
+
+  Future<bool> eliminarTarea(int id) async {
+    final filas = await (delete(tareas)..where((t) => t.id.equals(id))).go();
+    return filas > 0;
+  }
 }
