@@ -131,17 +131,15 @@ La pantalla imita un cuaderno de notas con renglones, usando la paleta rosa defi
 
 ## Pruebas manuales
 
-| ID | Prueba | Plataforma | Resultado |
-|----|--------|------------|-----------|
-| P1 | Agregar tres tareas, cerrar la pestaña y volver a abrir la misma URL | Chrome, localhost:8080 | [Resultado observado] |
-| P2 | Marcar una como completada y reiniciar | Chrome | [Resultado observado] |
-| P3 | Cambiar el título de una tarea y reiniciar | Chrome | [Resultado observado] |
-| P4 | Eliminar una tarea y reiniciar | Chrome | [Resultado observado] |
-| P5 | Intentar agregar un título vacío (y uno de solo espacios) | Chrome | [Resultado observado] |
-| P6 | Recargar y cerrar/abrir la pestaña en el mismo origen y perfil | Chrome | [Resultado observado] |
+| ID | Prueba | Plataforma |
+|----|--------|------------|
+| P1 | Agregar tres tareas, cerrar la pestaña y volver a abrir la misma URL | Chrome, localhost:8080 | 
+| P2 | Marcar una como completada y reiniciar | Chrome | 
+| P3 | Cambiar el título de una tarea y reiniciar | Chrome | 
+| P4 | Eliminar una tarea y reiniciar | Chrome |
+| P5 | Intentar agregar un título vacío (y uno de solo espacios) | Chrome | 
+| P6 | Recargar y cerrar/abrir la pestaña en el mismo origen y perfil | Chrome | 
 
-Almacenamiento elegido por Drift en el navegador: [mensaje de `onResult` o
-"sin mensaje"].
 
 ## Pruebas automatizadas (`flutter test`)
 
@@ -155,7 +153,7 @@ Almacenamiento elegido por Drift en el navegador: [mensaje de `onResult` o
   estado, cambio de estado, eliminación solo de la tarea indicada y
   operaciones sobre un id inexistente.
 
-Resultado de la última ejecución: 13
+Resultado de la última ejecución: 13 ejecutados de manera correcta.
 
 ## Limitaciones conocidas
 
